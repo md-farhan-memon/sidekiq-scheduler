@@ -253,7 +253,7 @@ module SidekiqScheduler
       Sidekiq.redis { |r| r.hdel(hash_key, field_key) }
     end
 
-    def replica_redis_info_present?
+    def self.replica_redis_info_present?
       @replica_redis_info_present ||= Sidekiq.replica_redis_info.present?
     end
 
