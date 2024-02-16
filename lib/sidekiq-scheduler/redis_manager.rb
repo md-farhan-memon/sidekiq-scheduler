@@ -97,7 +97,7 @@ module SidekiqScheduler
       hash = {}
 
       loop do
-        results = Sidekiq.replica_redis_info.present? ? scan_from_replica(cursor) : scan_from_master(cursor)
+        results = replica_redis_info_present? ? scan_from_replica(cursor) : scan_from_master(cursor)
         cursor = results[0].to_i
         hash.merge!(results[1].to_h)
 
@@ -251,6 +251,10 @@ module SidekiqScheduler
     # @param [String] field_key The key name of the field
     def self.hdel(hash_key, field_key)
       Sidekiq.redis { |r| r.hdel(hash_key, field_key) }
+    end
+
+    def replica_redis_info_present?
+      @replica_redis_info_present ||= Sidekiq.replica_redis_info.present?
     end
 
     def self.scan_from_replica(cursor)
