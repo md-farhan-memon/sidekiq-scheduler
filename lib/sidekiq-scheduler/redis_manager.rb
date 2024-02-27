@@ -89,7 +89,22 @@ module SidekiqScheduler
     #
     # @return [Hash] hash with all the job schedules
     def self.get_all_schedules
-      Sidekiq.redis { |r| r.hgetall(schedules_key) }
+      # Commenting out hgetall method and using scan method to fetch all schedules
+      # Also, it is coming from replica redis
+      # Sidekiq.redis { |r| r.hgetall(schedules_key) }
+
+      cursor = 0
+      hash = {}
+
+      loop do
+        results = replica_redis_info_present? ? scan_from_replica(cursor) : scan_from_master(cursor)
+        cursor = results[0].to_i
+        hash.merge!(results[1].to_h)
+
+        break if cursor.zero?
+      end
+
+      hash
     end
 
     # Returns boolean value that indicates if the schedules value exists
@@ -236,6 +251,18 @@ module SidekiqScheduler
     # @param [String] field_key The key name of the field
     def self.hdel(hash_key, field_key)
       Sidekiq.redis { |r| r.hdel(hash_key, field_key) }
+    end
+
+    def self.replica_redis_info_present?
+      @replica_redis_info_present ||= Sidekiq.replica_redis_info.present?
+    end
+
+    def self.scan_from_replica(cursor)
+      Sidekiq.replica_redis { |conn| conn.hscan(schedules_key, cursor) }
+    end
+
+    def self.scan_from_master(cursor)
+      Sidekiq.redis { |conn| conn.hscan(schedules_key, cursor) }
     end
   end
 end
